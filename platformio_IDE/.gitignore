@@ -1,0 +1,67 @@
+# -------------------------------------------------------------------
+# PlatformIO
+# -------------------------------------------------------------------
+.pio/
+.pioenvs/
+.piolibdeps/
+.pio/libdeps/
+.pio/build/
+.pio/test/
+.pio/packages/
+.pio/.cache/
+
+# Fichiers de configuration générés automatiquement
+platformio.ini.save
+.clang_complete
+.gcc-flags.json
+
+# -------------------------------------------------------------------
+# VS Code
+# -------------------------------------------------------------------
+.vscode/
+# (Optionnel : garder certains fichiers utiles)
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Historique de workspace
+*.code-workspace
+
+# -------------------------------------------------------------------
+# macOS
+# -------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon? (manège d’icône dans un dossier)
+Icon\r
+
+# Fichiers créés par macOS en réseau
+._*
+
+# Spotlight / Time Machine
+.Spotlight-V100
+.Trashes
+
+# -------------------------------------------------------------------
+# Python (souvent utilisé par PlatformIO)
+# -------------------------------------------------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.venv/
+env/
+venv/
+
+# -------------------------------------------------------------------
+# Divers
+# -------------------------------------------------------------------
+*.log
+*.tmp
+*.swp
+*.bak
