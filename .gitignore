@@ -1,0 +1,37 @@
+# --- PlatformIO ---
+.pio/
+.pioenvs/
+.piolibdeps/
+.clang_complete
+.gcc-flags.json
+.cproject
+.project
+
+# --- VS Code ---
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# VS Code local history
+.history/
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.apdisk
+
+# --- Logs ---
+*.log
+
+# --- Temp / backup files ---
+*.tmp
+*.swp
+*.swo
