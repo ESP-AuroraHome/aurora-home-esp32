@@ -13,7 +13,6 @@ namespace {
 constexpr uint8_t kWillQos = 1;
 constexpr bool kWillRetain = true;
 
-/// IPs candidates pour le broker si la resolution mDNS echoue.
 const IPAddress kBrokerCandidates[] = {
     IPAddress(192, 168, 4, 2),
     IPAddress(192, 168, 4, 3),
@@ -51,7 +50,7 @@ bool connectScan() {
     return false;
 }
 
-}  // namespace
+} /* namespace */
 
 void netBegin() {
     WiFi.softAP(AURORA_WIFI_AP_SSID, AURORA_WIFI_AP_PASSWORD);

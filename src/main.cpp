@@ -25,8 +25,12 @@ uint32_t mqttBackoffMs = kMqttBackoffInitialMs;
 uint32_t mqttLastAttemptMs = 0;
 uint32_t lastPublishMs = 0;
 
-// Dernier echantillon SCD30 (rafraichi ~toutes les 2s, publie a la cadence
-// AURORA_PUBLISH_INTERVAL_MS pour ne pas saturer le broker).
+/**
+ * @brief Dernier echantillon SCD30.
+ *
+ * Rafraichi ~toutes les 2s (cadence capteur), publie selon
+ * AURORA_PUBLISH_INTERVAL_MS pour ne pas saturer le broker.
+ */
 float co2Ppm = 0.0f;
 float scdTempC = 0.0f;
 float scdHumPct = 0.0f;
@@ -51,10 +55,10 @@ void initWatchdog() {
     delay(2000);
     ESP.restart();
     while (true)
-        delay(1000);  // unreachable
+        delay(1000);
 }
 
-}  // namespace
+} /* namespace */
 
 void setup() {
     Serial.begin(115200);

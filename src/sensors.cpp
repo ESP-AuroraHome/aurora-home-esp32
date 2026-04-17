@@ -10,7 +10,7 @@ namespace {
 SensirionI2cScd30 scd30;
 BH1750 bh1750(0x23);
 Adafruit_BME280 bme280;
-}  // namespace
+} /* namespace */
 
 bool sensorsInitBh1750() {
     return bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
