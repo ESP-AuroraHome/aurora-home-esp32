@@ -1,0 +1,47 @@
+# Doxygen config minimaliste — seules les options non-default sont listees.
+# Regenerer la doc: doxygen
+# Sortie: docs/html/index.html (dossier gitignore)
+
+PROJECT_NAME           = "AuroraHome ESP32"
+PROJECT_BRIEF          = "Firmware ESP32 — collecte capteurs + publication MQTT"
+PROJECT_NUMBER         = 0.1.0
+
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = NO
+OUTPUT_LANGUAGE        = English
+
+INPUT                  = src include lib README.md
+FILE_PATTERNS          = *.cpp *.h *.md
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */.pio/* */examples/*
+
+USE_MDFILE_AS_MAINPAGE = README.md
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+HIDE_UNDOC_MEMBERS     = NO
+
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = NO
+MULTILINE_CPP_IS_BRIEF = NO
+INLINE_INHERITED_MEMB  = YES
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+HTML_DYNAMIC_SECTIONS  = YES
+DISABLE_INDEX          = NO
+
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+HAVE_DOT               = NO
+
+WARN_AS_ERROR          = NO
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
+QUIET                  = YES
