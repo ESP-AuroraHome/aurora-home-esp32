@@ -17,10 +17,14 @@
 #define AURORA_WIFI_AP_PASSWORD "password123"
 
 // ---- MQTT ----
-#define AURORA_MQTT_PORT         1883
-#define AURORA_MQTT_TOPIC_DATA   "aurora/sensors"
-#define AURORA_MQTT_TOPIC_STATUS "aurora/status"
-#define AURORA_MQTT_CLIENT_ID    "esp32-aurora"
+#define AURORA_MQTT_PORT           1883
+#define AURORA_MQTT_TOPIC_DATA     "aurora/sensors"
+#define AURORA_MQTT_TOPIC_STATUS   "aurora/status"
+#define AURORA_MQTT_CLIENT_ID      "esp32-aurora"
+#define AURORA_MQTT_STATUS_ONLINE  "online"
+#define AURORA_MQTT_STATUS_OFFLINE "offline"
+#define AURORA_MQTT_SERVICE        "mqtt"
+#define AURORA_MQTT_PROTO          "tcp"
 
 // ---- mDNS ----
 #define AURORA_MDNS_HOSTNAME     "esp32-aurora"

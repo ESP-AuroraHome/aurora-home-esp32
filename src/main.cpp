@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ESPmDNS.h>
 #include <IPAddress.h>
 #include <Wire.h>
 #include <esp_arduino_version.h>
@@ -19,7 +20,8 @@ Bh1750Sensor bh1750;
 Bme280Sensor bme280;
 Scd30Sensor scd30;
 WifiAp wifiAp(AURORA_WIFI_AP_SSID, AURORA_WIFI_AP_PASSWORD);
-MqttPublisher mqtt(AURORA_MQTT_PORT, AURORA_MQTT_TOPIC_DATA);
+MqttPublisher mqtt(AURORA_MQTT_PORT, AURORA_MQTT_TOPIC_DATA, AURORA_MQTT_CLIENT_ID,
+                   AURORA_MQTT_TOPIC_STATUS, AURORA_MQTT_STATUS_ONLINE, AURORA_MQTT_STATUS_OFFLINE);
 
 const IPAddress kBrokerCandidates[] = {
     IPAddress(192, 168, 4, 2),
@@ -84,6 +86,12 @@ void setup() {
     LOG_INFO("AP SSID: %s", AURORA_WIFI_AP_SSID);
     LOG_INFO("ESP32 IP: %s", wifiAp.ip().toString().c_str());
 
+    if (!MDNS.begin(AURORA_MDNS_HOSTNAME)) {
+        LOG_WARN("mDNS responder failed to start");
+    } else {
+        LOG_INFO("mDNS responder up as %s.local", AURORA_MDNS_HOSTNAME);
+    }
+
     LOG_INFO("--- 3. Watchdog + waiting for client ---");
     initWatchdog();
     while (!wifiAp.hasClient()) {
@@ -108,7 +116,9 @@ void loop() {
             return;
         }
         mqttLastAttemptMs = now;
-        if (!mqtt.connectScanning(kBrokerCandidates, kBrokerCandidateCount)) {
+        const bool ok = mqtt.connectMdns(AURORA_MQTT_SERVICE, AURORA_MQTT_PROTO) ||
+                        mqtt.connectScanning(kBrokerCandidates, kBrokerCandidateCount);
+        if (!ok) {
             LOG_WARN("Broker not found; backoff %u ms", mqttBackoffMs);
             mqttBackoffMs = min(mqttBackoffMs * 2, kMqttBackoffMaxMs);
             return;
