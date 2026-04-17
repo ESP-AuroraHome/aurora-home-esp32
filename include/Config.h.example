@@ -1,0 +1,34 @@
+#pragma once
+
+/**
+ * @file Config.h.example
+ * @brief Template de configuration firmware. Copier en Config.h
+ *        (gitignored) puis adapter aux identifiants du deploiement.
+ *
+ *        cp include/Config.h.example include/Config.h
+ */
+
+// ---- I2C ----
+#define AURORA_I2C_SDA 21
+#define AURORA_I2C_SCL 22
+
+// ---- Wi-Fi Access Point ----
+#define AURORA_WIFI_AP_SSID     "ESP32-AP-Broker"
+#define AURORA_WIFI_AP_PASSWORD "password123"
+
+// ---- MQTT ----
+#define AURORA_MQTT_PORT         1883
+#define AURORA_MQTT_TOPIC_DATA   "aurora/sensors"
+#define AURORA_MQTT_TOPIC_STATUS "aurora/status"
+#define AURORA_MQTT_CLIENT_ID    "esp32-aurora"
+
+// ---- mDNS ----
+#define AURORA_MDNS_HOSTNAME     "esp32-aurora"
+#define AURORA_MDNS_BROKER_NAME  "aurorahome"
+
+// ---- Timings (ms) ----
+#define AURORA_PUBLISH_INTERVAL_MS 10000
+#define AURORA_WATCHDOG_TIMEOUT_S  30
+
+// ---- Log level: 0=NONE 1=ERROR 2=WARN 3=INFO 4=DEBUG ----
+#define AURORA_LOG_LEVEL 3
