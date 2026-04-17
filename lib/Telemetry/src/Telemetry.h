@@ -1,27 +1,28 @@
 #pragma once
 
-#include <stddef.h>
+#include <cstddef>
 
 /**
- * @brief Formats sensor measurements into a JSON payload.
+ * @brief Serialise un snapshot capteurs en JSON via ArduinoJson.
  *
- * Kept deliberately minimal (snprintf) so it stays host-testable. Will switch
- * to ArduinoJson at step 8 (see CLAUDE.md) once the CI has native tests wired.
+ * Valeurs numeriques (pas d'unites encastrees dans les strings) pour que les
+ * consommateurs (Home Assistant, Grafana) puissent traiter/agreger directement.
+ * Les unites sont portees par le nom de cle (ex: `temperature_c`).
  */
 class Telemetry {
  public:
     /**
-     * @brief Serialize a full sensor snapshot as a JSON string.
-     * @param[out] out            Destination buffer (null-terminated on success).
-     * @param      out_size       Size of @p out in bytes.
-     * @param      temperature_C  Temperature in degrees Celsius.
-     * @param      humidity_pct   Relative humidity in percent.
-     * @param      pressure_hPa   Pressure in hectopascals.
-     * @param      co2_ppm        CO2 concentration in ppm.
-     * @param      lux            Light level in lux.
-     * @return Number of bytes written (excluding the null terminator),
-     *         or -1 on error or buffer too small.
+     * @brief Serialise un snapshot capteurs en JSON.
+     * @param[out] out            Buffer destination (null-termine en sortie).
+     * @param      outSize        Taille de @p out en octets.
+     * @param      temperatureC   Temperature en degres Celsius.
+     * @param      humidityPct    Humidite relative en pourcent.
+     * @param      pressureHpa    Pression en hectopascals.
+     * @param      co2Ppm         Concentration CO2 en ppm.
+     * @param      lux            Luminosite en lux.
+     * @return Nombre d'octets ecrits (hors null terminator), ou -1 si buffer
+     *         trop petit / erreur de serialisation.
      */
-    static int formatJson(char* out, size_t out_size, float temperature_C, float humidity_pct,
-                          float pressure_hPa, float co2_ppm, float lux);
+    static int formatJson(char* out, size_t outSize, float temperatureC, float humidityPct,
+                          float pressureHpa, float co2Ppm, float lux);
 };

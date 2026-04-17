@@ -1,19 +1,17 @@
 #include "Telemetry.h"
 
-#include <stdio.h>
+#include <ArduinoJson.h>
 
-int Telemetry::formatJson(char* out, size_t out_size, float temperature_C, float humidity_pct,
-                          float pressure_hPa, float co2_ppm, float lux) {
-    const int n = snprintf(out, out_size,
-                           "{"
-                           "\"temperature\": \"%.2f °C\", "
-                           "\"humidity\": \"%.2f %%\", "
-                           "\"pressure\": \"%.2f hPa\", "
-                           "\"co2\": \"%.0f ppm\", "
-                           "\"light\": \"%.0f lx\""
-                           "}",
-                           temperature_C, humidity_pct, pressure_hPa, co2_ppm, lux);
+int Telemetry::formatJson(char* out, size_t outSize, float temperatureC, float humidityPct,
+                          float pressureHpa, float co2Ppm, float lux) {
+    JsonDocument doc;
+    doc["temperature_c"] = temperatureC;
+    doc["humidity_pct"] = humidityPct;
+    doc["pressure_hpa"] = pressureHpa;
+    doc["co2_ppm"] = co2Ppm;
+    doc["light_lx"] = lux;
 
-    if (n < 0 || static_cast<size_t>(n) >= out_size) return -1;
-    return n;
+    const size_t n = serializeJson(doc, out, outSize);
+    if (n == 0 || n >= outSize) return -1;
+    return static_cast<int>(n);
 }
