@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <IPAddress.h>
 #include <Wire.h>
+#include <esp_arduino_version.h>
+#include <esp_task_wdt.h>
 
 #include "Bh1750Sensor.h"
 #include "Bme280Sensor.h"
@@ -27,10 +29,40 @@ const IPAddress kBrokerCandidates[] = {
 };
 constexpr size_t kBrokerCandidateCount = sizeof(kBrokerCandidates) / sizeof(kBrokerCandidates[0]);
 
-void haltOnFailure(const char* message) {
-    LOG_ERROR("%s", message);
+constexpr uint32_t kMqttBackoffInitialMs = 1000;
+constexpr uint32_t kMqttBackoffMaxMs = 60000;
+
+uint32_t mqttBackoffMs = kMqttBackoffInitialMs;
+uint32_t mqttLastAttemptMs = 0;
+uint32_t lastPublishMs = 0;
+
+// Dernier echantillon SCD30 (rafraichi ~toutes les 2s, publie selon
+// AURORA_PUBLISH_INTERVAL_MS pour ne pas saturer MQTT).
+float co2 = 0.0f;
+float scdTemp = 0.0f;
+float scdHum = 0.0f;
+bool haveScd = false;
+
+void initWatchdog() {
+#if defined(ESP_ARDUINO_VERSION) && ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+    const esp_task_wdt_config_t cfg = {
+        .timeout_ms = AURORA_WATCHDOG_TIMEOUT_S * 1000U,
+        .idle_core_mask = (1U << portNUM_PROCESSORS) - 1U,
+        .trigger_panic = true,
+    };
+    esp_task_wdt_init(&cfg);
+#else
+    esp_task_wdt_init(AURORA_WATCHDOG_TIMEOUT_S, true);
+#endif
+    esp_task_wdt_add(nullptr);
+}
+
+[[noreturn]] void fatalReboot(const char* message) {
+    LOG_ERROR("FATAL: %s - rebooting in 2s", message);
+    delay(2000);
+    ESP.restart();
     while (true)
-        delay(1000);
+        delay(1000);  // unreachable
 }
 
 }  // namespace
@@ -44,44 +76,67 @@ void setup() {
 
     LOG_INFO("--- 1. Sensor initialization ---");
     if (!bh1750.begin()) LOG_ERROR("BH1750 init failed");
-    if (!scd30.begin()) haltOnFailure("SCD30 init failed");
-    if (!bme280.begin()) haltOnFailure("BME280 init failed");
+    if (!scd30.begin()) fatalReboot("SCD30 init");
+    if (!bme280.begin()) fatalReboot("BME280 init");
 
     LOG_INFO("--- 2. Starting access point ---");
     wifiAp.begin();
     LOG_INFO("AP SSID: %s", AURORA_WIFI_AP_SSID);
     LOG_INFO("ESP32 IP: %s", wifiAp.ip().toString().c_str());
 
-    LOG_INFO("--- 3. Waiting for client ---");
+    LOG_INFO("--- 3. Watchdog + waiting for client ---");
+    initWatchdog();
     while (!wifiAp.hasClient()) {
+        esp_task_wdt_reset();
         delay(500);
     }
     LOG_INFO("Client connected.");
 }
 
 void loop() {
+    esp_task_wdt_reset();
+    const uint32_t now = millis();
+
     if (!wifiAp.hasClient()) {
-        delay(1000);
+        delay(500);
         return;
     }
 
     if (!mqtt.connected()) {
+        if (now - mqttLastAttemptMs < mqttBackoffMs) {
+            delay(50);
+            return;
+        }
+        mqttLastAttemptMs = now;
         if (!mqtt.connectScanning(kBrokerCandidates, kBrokerCandidateCount)) {
-            LOG_WARN("Broker not found. Retrying in 3s...");
-            delay(3000);
+            LOG_WARN("Broker not found; backoff %u ms", mqttBackoffMs);
+            mqttBackoffMs = min(mqttBackoffMs * 2, kMqttBackoffMaxMs);
             return;
         }
         LOG_INFO("MQTT connected.");
+        mqttBackoffMs = kMqttBackoffInitialMs;
     }
     mqtt.loop();
 
-    float co2 = 0.0f;
-    float scdTemp = 0.0f;
-    float scdHum = 0.0f;
-    if (!scd30.read(co2, scdTemp, scdHum)) {
+    float c = 0.0f;
+    float t = 0.0f;
+    float h = 0.0f;
+    if (scd30.read(c, t, h)) {
+        co2 = c;
+        scdTemp = t;
+        scdHum = h;
+        haveScd = true;
+    }
+
+    if (!haveScd) {
         delay(10);
         return;
     }
+    if (now - lastPublishMs < AURORA_PUBLISH_INTERVAL_MS) {
+        delay(10);
+        return;
+    }
+    lastPublishMs = now;
 
     float bmeTemp = 0.0f;
     float bmeHum = 0.0f;
@@ -99,6 +154,4 @@ void loop() {
         LOG_DEBUG("Publishing: %s", payload);
         mqtt.publish(payload);
     }
-
-    delay(10000);
 }
