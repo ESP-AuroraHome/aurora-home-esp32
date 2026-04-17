@@ -1,37 +1,72 @@
-# --- PlatformIO ---
+# -------------------------------------------------------------------
+# Claude Code (feuille de route locale)
+# -------------------------------------------------------------------
+CLAUDE.md
+
+# -------------------------------------------------------------------
+# PlatformIO
+# -------------------------------------------------------------------
 .pio/
 .pioenvs/
 .piolibdeps/
+.pio/libdeps/
+.pio/build/
+.pio/test/
+.pio/packages/
+.pio/.cache/
+
+# Fichiers de configuration générés automatiquement
+platformio.ini.save
 .clang_complete
 .gcc-flags.json
 .cproject
 .project
 
-# --- VS Code ---
+# -------------------------------------------------------------------
+# VS Code
+# -------------------------------------------------------------------
 .vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
 !.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
-# VS Code local history
+# Historique de workspace
+*.code-workspace
 .history/
 
-# --- macOS ---
+# -------------------------------------------------------------------
+# macOS
+# -------------------------------------------------------------------
 .DS_Store
 .AppleDouble
 .LSOverride
 Icon?
+Icon\r
 ._*
 .Spotlight-V100
 .Trashes
 .fseventsd
 .apdisk
 
-# --- Logs ---
-*.log
+# -------------------------------------------------------------------
+# Python (souvent utilisé par PlatformIO)
+# -------------------------------------------------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.venv/
+env/
+venv/
 
-# --- Temp / backup files ---
+# -------------------------------------------------------------------
+# Logs / temp / backup
+# -------------------------------------------------------------------
+*.log
 *.tmp
 *.swp
 *.swo
+*.bak
