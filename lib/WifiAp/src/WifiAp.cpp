@@ -2,8 +2,7 @@
 
 #include <WiFi.h>
 
-WifiAp::WifiAp(const char* ssid, const char* password)
-    : ssid_(ssid), password_(password) {}
+WifiAp::WifiAp(const char* ssid, const char* password) : ssid_(ssid), password_(password) {}
 
 bool WifiAp::begin() {
     return WiFi.softAP(ssid_, password_);

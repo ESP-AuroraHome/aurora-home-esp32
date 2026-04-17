@@ -22,7 +22,6 @@ class Telemetry {
      * @return Number of bytes written (excluding the null terminator),
      *         or -1 on error or buffer too small.
      */
-    static int formatJson(char* out, size_t out_size,
-                          float temperature_C, float humidity_pct, float pressure_hPa,
-                          float co2_ppm, float lux);
+    static int formatJson(char* out, size_t out_size, float temperature_C, float humidity_pct,
+                          float pressure_hPa, float co2_ppm, float lux);
 };

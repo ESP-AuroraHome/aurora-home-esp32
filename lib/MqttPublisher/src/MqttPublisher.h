@@ -44,8 +44,8 @@ class MqttPublisher {
     bool publish(const char* payload);
 
  private:
-    WiFiClient   wifiClient_;
+    WiFiClient wifiClient_;
     PubSubClient mqtt_;
-    uint16_t     port_;
-    const char*  topic_;
+    uint16_t port_;
+    const char* topic_;
 };

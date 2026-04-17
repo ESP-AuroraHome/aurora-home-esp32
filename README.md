@@ -4,7 +4,7 @@ Firmware ESP32 — collecte multi-capteurs (CO2, temp, humidité, pression, lumi
 
 ## Structure du dépôt
 
-```
+```text
 .
 ├── platformio.ini    # build PlatformIO (env: esp32dev)
 ├── src/              # main.cpp
@@ -22,7 +22,7 @@ pio run -e esp32dev -t upload  # flash
 pio device monitor             # serial
 ```
 
-## Architecture P.O.C.
+## Architecture P.O.C
 
 ```mermaid
 flowchart LR

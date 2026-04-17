@@ -14,9 +14,13 @@ bool MqttPublisher::connectScanning(const IPAddress* candidates, size_t count) {
     return false;
 }
 
-void MqttPublisher::loop() { mqtt_.loop(); }
+void MqttPublisher::loop() {
+    mqtt_.loop();
+}
 
-bool MqttPublisher::connected() { return mqtt_.connected(); }
+bool MqttPublisher::connected() {
+    return mqtt_.connected();
+}
 
 bool MqttPublisher::publish(const char* payload) {
     return mqtt_.publish(topic_, payload);

@@ -12,9 +12,9 @@
 #define AURORA_I2C_SCL 22
 
 // ---- Wi-Fi Access Point ----
-#define AURORA_WIFI_AP_SSID     "ESP32-AP-Broker"
+#define AURORA_WIFI_AP_SSID "ESP32-AP-Broker"
 #define AURORA_WIFI_AP_PASSWORD "password123"
 
 // ---- MQTT ----
-#define AURORA_MQTT_PORT  1883
+#define AURORA_MQTT_PORT 1883
 #define AURORA_MQTT_TOPIC "sensor/data"
