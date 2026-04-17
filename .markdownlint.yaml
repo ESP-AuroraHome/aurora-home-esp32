@@ -1,0 +1,11 @@
+# https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+default: true
+
+# MD013 line-length desactive: on a des blocs mermaid longs
+MD013: false
+
+# MD033 inline HTML: on utilise <br/> dans les diagrammes mermaid
+MD033: false
+
+# MD041 first-line-h1 desactive: les sous-README peuvent commencer differemment
+MD041: false
