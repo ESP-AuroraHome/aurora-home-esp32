@@ -5,6 +5,7 @@
 
 #include "Config.h"
 #include "Logger.h"
+#include "fusion.h"
 #include "net.h"
 #include "sensors.h"
 #include "telemetry.h"
@@ -137,8 +138,8 @@ void loop() {
     float lux = 0.0f;
     if (!sensorsReadBh1750(lux)) LOG_WARN("BH1750 read failed");
 
-    const float avgTempC = (scdTempC + bmeTempC) / 2.0f;
-    const float avgHumPct = (scdHumPct + bmeHumPct) / 2.0f;
+    const float avgTempC = fusionAverage(scdTempC, bmeTempC);
+    const float avgHumPct = fusionAverage(scdHumPct, bmeHumPct);
 
     char payload[256];
     const size_t n =
