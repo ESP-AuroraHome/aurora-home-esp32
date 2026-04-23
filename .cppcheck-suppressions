@@ -1,0 +1,19 @@
+# cppcheck suppressions — appliquees via `cppcheck --suppressions-list=.cppcheck-suppressions`
+
+# PlatformIO/Arduino: beaucoup de libs tierces dans .pio/, on les ignore.
+*:*.pio/*
+*:.pio/libdeps/*
+
+# missingInclude sur les headers Arduino core (WiFi.h, Wire.h, etc.) qui ne sont
+# resolus qu'a la compil PlatformIO.
+missingIncludeSystem
+
+# Les setup()/loop() sont des entry points, cppcheck les voit comme "unused".
+unusedFunction:src/main.cpp
+
+# isnan() de <math.h> leve parfois un faux positif en C++ avec std::isnan.
+preprocessorErrorDirective
+
+# WifiAp encapsule un singleton Wi-Fi global: les methodes non-static sont
+# voulues pour garder une API d'instance coherente.
+functionStatic:lib/WifiAp/src/WifiAp.cpp
