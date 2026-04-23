@@ -1,18 +1,7 @@
-# ---------------------------------------------------------------------------
-# CI — aurora-home-esp32
+# CI pipeline for aurora-home-esp32
 #
-# Jobs parallèles :
-#   lint-format        → clang-format (C/C++)
-#   lint-misc          → markdownlint + yamllint
-#   commitlint         → Conventional Commits
-#   static-analysis    → cppcheck
-#   build              → PlatformIO build ESP32
-#   test               → PlatformIO tests natifs Unity
-#
-# NOTE : clang-tidy est volontairement omis — il nécessite la toolchain
-# Xtensa pour générer un compile_commands.json ESP32, ce qui est trop
-# complexe/fragile en CI. Il reste disponible localement via pre-commit.
-# ---------------------------------------------------------------------------
+# Job order:
+#   commitlint → lint-format / lint-misc / static-analysis → build → test
 name: CI
 
 on:
@@ -21,31 +10,58 @@ on:
   pull_request:
     branches: [main]
 
-# Annuler les runs précédents sur la même branche/PR
+# Cancel previous runs on the same branch/PR
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# ---------------------------------------------------------------------------
-# JOBS
-# ---------------------------------------------------------------------------
 jobs:
 
-  # -------------------------------------------------------------------------
-  # 1. Formatage C/C++ — clang-format v19
-  #    On installe la version exacte via pip pour éviter le mismatch avec
-  #    la version système d'Ubuntu (14/15).
-  # -------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # Gate: commit messages must follow Conventional Commits before anything else
+  # On PR: validates all commits in the PR. On push: validates HEAD only.
+  # fetch-depth: 0 is required to access commit history for SHA comparison.
+  # ---------------------------------------------------------------------------
+  commitlint:
+    name: "commit-lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install commitlint
+        run: npm install --save-dev @commitlint/cli @commitlint/config-conventional
+
+      - name: Validate commit messages
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npx commitlint --from "${{ github.event.pull_request.base.sha }}" \
+                           --to   "${{ github.event.pull_request.head.sha }}" \
+                           --verbose
+          else
+            npx commitlint --from "HEAD~1" --to HEAD --verbose
+          fi
+
+  # ---------------------------------------------------------------------------
+  # clang-format: pinned to v19.1.4 via pip to match .pre-commit-config.yaml
+  # and avoid results differing from Ubuntu's system clang-format (14/15).
+  # ---------------------------------------------------------------------------
   lint-format:
-    name: "🎨 clang-format"
+    name: "clang-format"
+    needs: commitlint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Installer clang-format 19
+      - name: Install clang-format 19
         run: pip install clang-format==19.1.4
 
-      - name: Vérifier le formatage C/C++
+      - name: Check C/C++ formatting
         run: |
           find src include lib \
             -type f \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) \
@@ -53,11 +69,9 @@ jobs:
             -print0 \
           | xargs -0 clang-format --dry-run --Werror --style=file
 
-  # -------------------------------------------------------------------------
-  # 2. Lint Markdown + YAML
-  # -------------------------------------------------------------------------
   lint-misc:
-    name: "📝 markdown + yaml lint"
+    name: "markdown + yaml lint"
+    needs: commitlint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,51 +87,21 @@ jobs:
           pip install yamllint
           yamllint -c .yamllint .
 
-  # -------------------------------------------------------------------------
-  # 3. Commitlint — Conventional Commits
-  #    Sur une PR, vérifie les commits de la PR.
-  #    Sur un push direct, vérifie uniquement le dernier commit.
-  # -------------------------------------------------------------------------
-  commitlint:
-    name: "📏 commitlint"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # nécessaire pour accéder à l'historique des commits
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Installer commitlint
-        run: npm install --save-dev @commitlint/cli @commitlint/config-conventional
-
-      - name: Valider les messages de commit
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npx commitlint --from "${{ github.event.pull_request.base.sha }}" \
-                           --to   "${{ github.event.pull_request.head.sha }}" \
-                           --verbose
-          else
-            npx commitlint --from "HEAD~1" --to HEAD --verbose
-          fi
-
-  # -------------------------------------------------------------------------
-  # 4. Analyse statique — cppcheck
-  #    Utilise le fichier de suppressions existant pour ignorer les faux
-  #    positifs (headers Arduino, .pio/, etc.).
-  # -------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # cppcheck: uses .cppcheck-suppressions to silence known Arduino false
+  # positives (missing system includes, unused setup/loop entry points, etc.)
+  # ---------------------------------------------------------------------------
   static-analysis:
-    name: "🔍 cppcheck"
+    name: "cppcheck"
+    needs: commitlint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Installer cppcheck
+      - name: Install cppcheck
         run: sudo apt-get update && sudo apt-get install -y cppcheck
 
-      - name: Lancer cppcheck
+      - name: Run cppcheck
         run: |
           cppcheck \
             --enable=warning,style,performance,portability \
@@ -128,13 +112,13 @@ jobs:
             --quiet \
             src/ include/ lib/
 
-  # -------------------------------------------------------------------------
-  # 5. Build firmware ESP32
-  #    Config.h.example est copié en Config.h (gitignored) pour que le
-  #    build passe sans secrets.
-  # -------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # Config.h is gitignored — copy from .example so the build succeeds in CI
+  # without any real credentials.
+  # ---------------------------------------------------------------------------
   build:
-    name: "🔨 build ESP32"
+    name: "build ESP32"
+    needs: [lint-format, lint-misc, static-analysis]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -148,30 +132,29 @@ jobs:
           key: pio-${{ hashFiles('platformio.ini') }}
           restore-keys: pio-
 
-      - name: Installer PlatformIO
+      - name: Install PlatformIO
         run: pip install platformio
 
-      - name: Préparer Config.h
+      - name: Prepare Config.h
         run: cp include/Config.h.example include/Config.h
 
-      - name: Compiler le firmware
+      - name: Compile firmware
         run: pio run -e esp32dev
 
-      - name: Uploader l'artifact firmware
+      - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: firmware-esp32
           path: .pio/build/esp32dev/firmware.bin
           retention-days: 30
 
-  # -------------------------------------------------------------------------
-  # 6. Tests natifs Unity
-  #    L'env `native` compile et exécute les tests sur le runner Linux
-  #    (pas besoin de hardware ESP32).
-  #    Suites : test_native_fusion, test_native_telemetry, test_native_contracts
-  # -------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # Native Unity tests run directly on the Linux runner (no ESP32 hardware).
+  # Suites: test_native_fusion, test_native_telemetry, test_native_contracts
+  # ---------------------------------------------------------------------------
   test:
-    name: "🧪 tests natifs"
+    name: "native tests"
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -185,11 +168,11 @@ jobs:
           key: pio-${{ hashFiles('platformio.ini') }}
           restore-keys: pio-
 
-      - name: Installer PlatformIO
+      - name: Install PlatformIO
         run: pip install platformio
 
-      - name: Préparer Config.h
+      - name: Prepare Config.h
         run: cp include/Config.h.example include/Config.h
 
-      - name: Exécuter les tests natifs
+      - name: Run native tests
         run: pio test -e native --verbose
