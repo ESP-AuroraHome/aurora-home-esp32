@@ -69,9 +69,17 @@ void setup() {
     Wire.begin(AURORA_I2C_SDA, AURORA_I2C_SCL);
 
     LOG_INFO("--- 1. Sensor initialization ---");
-    if (!sensorsInitBh1750()) LOG_ERROR("BH1750 init failed");
-    if (!sensorsInitScd30()) fatalReboot("SCD30 init");
-    if (!sensorsInitBme280()) fatalReboot("BME280 init");
+    const bool bh1750Ok = sensorsInitBh1750();
+    LOG_INFO("BH1750: %s", bh1750Ok ? "OK" : "KO");
+
+    const bool scd30Ok = sensorsInitScd30();
+    LOG_INFO("SCD30:  %s", scd30Ok ? "OK" : "KO");
+
+    const bool bme280Ok = sensorsInitBme280();
+    LOG_INFO("BME280: %s", bme280Ok ? "OK" : "KO");
+
+    if (!scd30Ok) fatalReboot("SCD30 init");
+    if (!bme280Ok) fatalReboot("BME280 init");
 
     LOG_INFO("--- 2. Starting access point ---");
     netBegin();
@@ -148,6 +156,6 @@ void loop() {
         LOG_WARN("Payload serialization failed");
         return;
     }
-    LOG_DEBUG("Publishing: %s", payload);
+    LOG_INFO("MQTT publish [%s]: %s", AURORA_MQTT_TOPIC_DATA, payload);
     netMqttPublish(AURORA_MQTT_TOPIC_DATA, payload);
 }
