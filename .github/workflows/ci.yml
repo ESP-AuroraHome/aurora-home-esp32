@@ -10,11 +10,6 @@ on:
   pull_request:
     branches: [main]
 
-# Cancel previous runs on the same branch/PR
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
 
   # ---------------------------------------------------------------------------
