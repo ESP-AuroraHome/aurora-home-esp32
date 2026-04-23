@@ -5,10 +5,12 @@
 name: CI
 
 on:
+  # Post-merge: runs on main after a PR is merged
   push:
     branches: [main]
+  # Re-runs on every commit pushed to a PR branch (opened, new commit, reopened)
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened]
 
 jobs:
 
