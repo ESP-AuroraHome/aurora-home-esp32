@@ -1,0 +1,195 @@
+# ---------------------------------------------------------------------------
+# CI — aurora-home-esp32
+#
+# Jobs parallèles :
+#   lint-format        → clang-format (C/C++)
+#   lint-misc          → markdownlint + yamllint
+#   commitlint         → Conventional Commits
+#   static-analysis    → cppcheck
+#   build              → PlatformIO build ESP32
+#   test               → PlatformIO tests natifs Unity
+#
+# NOTE : clang-tidy est volontairement omis — il nécessite la toolchain
+# Xtensa pour générer un compile_commands.json ESP32, ce qui est trop
+# complexe/fragile en CI. Il reste disponible localement via pre-commit.
+# ---------------------------------------------------------------------------
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Annuler les runs précédents sur la même branche/PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ---------------------------------------------------------------------------
+# JOBS
+# ---------------------------------------------------------------------------
+jobs:
+
+  # -------------------------------------------------------------------------
+  # 1. Formatage C/C++ — clang-format v19
+  #    On installe la version exacte via pip pour éviter le mismatch avec
+  #    la version système d'Ubuntu (14/15).
+  # -------------------------------------------------------------------------
+  lint-format:
+    name: "🎨 clang-format"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer clang-format 19
+        run: pip install clang-format==19.1.4
+
+      - name: Vérifier le formatage C/C++
+        run: |
+          find src include lib \
+            -type f \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) \
+            ! -path 'examples/*' \
+            -print0 \
+          | xargs -0 clang-format --dry-run --Werror --style=file
+
+  # -------------------------------------------------------------------------
+  # 2. Lint Markdown + YAML
+  # -------------------------------------------------------------------------
+  lint-misc:
+    name: "📝 markdown + yaml lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          config: .markdownlint.yaml
+          globs: "**/*.md"
+
+      - name: yamllint
+        run: |
+          pip install yamllint
+          yamllint -c .yamllint .
+
+  # -------------------------------------------------------------------------
+  # 3. Commitlint — Conventional Commits
+  #    Sur une PR, vérifie les commits de la PR.
+  #    Sur un push direct, vérifie uniquement le dernier commit.
+  # -------------------------------------------------------------------------
+  commitlint:
+    name: "📏 commitlint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # nécessaire pour accéder à l'historique des commits
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Installer commitlint
+        run: npm install --save-dev @commitlint/cli @commitlint/config-conventional
+
+      - name: Valider les messages de commit
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npx commitlint --from "${{ github.event.pull_request.base.sha }}" \
+                           --to   "${{ github.event.pull_request.head.sha }}" \
+                           --verbose
+          else
+            npx commitlint --from "HEAD~1" --to HEAD --verbose
+          fi
+
+  # -------------------------------------------------------------------------
+  # 4. Analyse statique — cppcheck
+  #    Utilise le fichier de suppressions existant pour ignorer les faux
+  #    positifs (headers Arduino, .pio/, etc.).
+  # -------------------------------------------------------------------------
+  static-analysis:
+    name: "🔍 cppcheck"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Lancer cppcheck
+        run: |
+          cppcheck \
+            --enable=warning,style,performance,portability \
+            --std=c++17 \
+            --suppressions-list=.cppcheck-suppressions \
+            --error-exitcode=1 \
+            --inline-suppr \
+            --quiet \
+            src/ include/ lib/
+
+  # -------------------------------------------------------------------------
+  # 5. Build firmware ESP32
+  #    Config.h.example est copié en Config.h (gitignored) pour que le
+  #    build passe sans secrets.
+  # -------------------------------------------------------------------------
+  build:
+    name: "🔨 build ESP32"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+          key: pio-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-
+
+      - name: Installer PlatformIO
+        run: pip install platformio
+
+      - name: Préparer Config.h
+        run: cp include/Config.h.example include/Config.h
+
+      - name: Compiler le firmware
+        run: pio run -e esp32dev
+
+      - name: Uploader l'artifact firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-esp32
+          path: .pio/build/esp32dev/firmware.bin
+          retention-days: 30
+
+  # -------------------------------------------------------------------------
+  # 6. Tests natifs Unity
+  #    L'env `native` compile et exécute les tests sur le runner Linux
+  #    (pas besoin de hardware ESP32).
+  #    Suites : test_native_fusion, test_native_telemetry, test_native_contracts
+  # -------------------------------------------------------------------------
+  test:
+    name: "🧪 tests natifs"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+          key: pio-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-
+
+      - name: Installer PlatformIO
+        run: pip install platformio
+
+      - name: Préparer Config.h
+        run: cp include/Config.h.example include/Config.h
+
+      - name: Exécuter les tests natifs
+        run: pio test -e native --verbose
