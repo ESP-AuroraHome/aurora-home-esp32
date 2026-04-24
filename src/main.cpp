@@ -90,7 +90,13 @@ void setup() {
         esp_task_wdt_reset();
         delay(500);
     }
-    LOG_INFO("Client connected.");
+    IPAddress clientIP;
+    do {
+        esp_task_wdt_reset();
+        delay(100);
+        clientIP = netClientIP();
+    } while (clientIP == IPAddress(0U));
+    LOG_INFO("Client connected. IP: %s", clientIP.toString().c_str());
 }
 
 void loop() {

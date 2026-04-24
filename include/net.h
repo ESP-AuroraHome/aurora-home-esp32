@@ -1,5 +1,7 @@
 #pragma once
 
+#include <IPAddress.h>
+
 /**
  * @file net.h
  * @brief Soft-AP Wi-Fi + MQTT (decouverte mDNS, fallback scan IP, LWT).
@@ -13,6 +15,9 @@ void netBegin();
 
 /** @brief Vrai si au moins un client Wi-Fi est associe a l'AP. */
 bool netHasClient();
+
+/** @brief IP du premier client associe, ou 0.0.0.0 si aucun. */
+IPAddress netClientIP();
 
 /** @brief Session MQTT etablie ? */
 bool netMqttConnected();
