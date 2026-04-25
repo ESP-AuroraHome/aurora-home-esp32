@@ -6,8 +6,8 @@
  * @file telemetry.h
  * @brief Serialisation JSON du snapshot capteurs (ArduinoJson).
  *
- * Valeurs numeriques; les unites sont portees par le nom de cle
- * (temperature_c, humidity_pct, pressure_hpa, co2_ppm, light_lx).
+ * Valeurs sérialisées en chaînes "%.2f"; clés JSON :
+ * temperature, humidity, pressure, co2, light.
  */
 
 /**
