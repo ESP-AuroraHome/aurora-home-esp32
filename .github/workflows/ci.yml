@@ -1,0 +1,188 @@
+# CI pipeline for aurora-home-esp32
+#
+# Job order:
+#   commitlint → lint-format / lint-misc / static-analysis → build → test
+name: CI
+
+on:
+  # Post-merge: runs on main after a PR is merged
+  push:
+    branches: [main]
+  # Re-runs on every commit pushed to a PR branch (opened, new commit, reopened)
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  PIO_VERSION: "6.1.13"
+  CLANG_FORMAT_VERSION: "19.1.4"
+  YAMLLINT_VERSION: "1.35.1"
+  COMMITLINT_VERSION: "19.8.0"
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Gate: commit messages must follow Conventional Commits before anything else
+  # On PR: validates all commits in the PR. On push: validates HEAD only.
+  # fetch-depth: 0 is required to access commit history for SHA comparison.
+  # ---------------------------------------------------------------------------
+  commitlint:
+    name: "commit-lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install commitlint
+        run: |
+          npm install --no-save \
+            @commitlint/cli@${{ env.COMMITLINT_VERSION }} \
+            @commitlint/config-conventional@${{ env.COMMITLINT_VERSION }}
+
+      - name: Validate commit messages
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npx commitlint --from "${{ github.event.pull_request.base.sha }}" \
+                           --to   "${{ github.event.pull_request.head.sha }}" \
+                           --verbose
+          else
+            if [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+              npx commitlint --from "${{ github.event.before }}" --to "${{ github.sha }}" --verbose
+            fi
+          fi
+
+  # ---------------------------------------------------------------------------
+  # clang-format: pinned to v19.1.4 via pip to match .pre-commit-config.yaml
+  # and avoid results differing from Ubuntu's system clang-format (14/15).
+  # ---------------------------------------------------------------------------
+  lint-format:
+    name: "clang-format"
+    needs: commitlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format 19
+        run: pip install clang-format==${{ env.CLANG_FORMAT_VERSION }}
+
+      - name: Check C/C++ formatting
+        run: |
+          find src include lib \
+            -type f \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) \
+            ! -path '*/examples/*' \
+            -print0 \
+          | xargs -0 -r clang-format --dry-run --Werror --style=file
+
+  lint-misc:
+    name: "markdown + yaml lint"
+    needs: commitlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          config: .markdownlint.yaml
+          globs: "**/*.md"
+
+      - name: yamllint
+        run: |
+          pip install yamllint==${{ env.YAMLLINT_VERSION }}
+          yamllint -c .yamllint .
+
+  # ---------------------------------------------------------------------------
+  # cppcheck: uses .cppcheck-suppressions to silence known Arduino false
+  # positives (missing system includes, unused setup/loop entry points, etc.)
+  # ---------------------------------------------------------------------------
+  static-analysis:
+    name: "cppcheck"
+    needs: commitlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck \
+            --enable=warning,style,performance,portability \
+            --std=c++17 \
+            --suppressions-list=.cppcheck-suppressions \
+            --error-exitcode=1 \
+            --inline-suppr \
+            --quiet \
+            src/ include/ lib/
+
+  # ---------------------------------------------------------------------------
+  # Config.h is gitignored — copy from .example so the build succeeds in CI
+  # without any real credentials.
+  # ---------------------------------------------------------------------------
+  build:
+    name: "build ESP32"
+    needs: [lint-format, lint-misc, static-analysis]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
+
+      - name: Install PlatformIO
+        run: pip install platformio==${{ env.PIO_VERSION }}
+
+      - name: Prepare Config.h
+        run: cp include/Config.h.example include/Config.h
+
+      - name: Compile firmware
+        run: pio run -e esp32dev
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-esp32
+          path: .pio/build/esp32dev/firmware.bin
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # Native Unity tests run directly on the Linux runner (no ESP32 hardware).
+  # Suites: test_native_fusion, test_native_telemetry, test_native_contracts
+  # ---------------------------------------------------------------------------
+  test:
+    name: "native tests"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
+
+      - name: Install PlatformIO
+        run: pip install platformio==6.1.13
+
+      - name: Prepare Config.h
+        run: cp include/Config.h.example include/Config.h
+
+      - name: Run native tests
+        run: pio test -e native --verbose
