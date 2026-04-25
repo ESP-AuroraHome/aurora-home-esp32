@@ -18,6 +18,7 @@ void setUp() {
     g_mqtt_publish_calls = 0;
     g_mqtt_set_server_calls = 0;
     g_mdns_service_count = 0;
+    g_mdns_begin_result = true;
     g_esp_wifi_ok = true;
     g_esp_netif_ok = true;
     g_esp_netif_num = 0;
@@ -135,13 +136,48 @@ void testClientIpReturnsFirstStation() {
     TEST_ASSERT_TRUE(netClientIP() != IPAddress());
 }
 
+/* ---- netBegin ---- */
+
+void testNetBeginMdnsSuccess() {
+    g_mdns_begin_result = true;
+    netBegin(); /* must not crash; mDNS responder starts */
+}
+
+void testNetBeginMdnsFails() {
+    g_mdns_begin_result = false;
+    netBegin(); /* must not crash; LOG_WARN path taken */
+}
+
+/* ---- netMqttLoop ---- */
+
+void testMqttLoopDelegates() {
+    g_mqtt_connected = true;
+    netMqttLoop(); /* delegates to mqtt.loop(), connected=true path */
+    g_mqtt_connected = false;
+    netMqttLoop(); /* connected=false path */
+}
+
+/* ---- mDNS: multiple services, first fails, second succeeds ---- */
+
+void testTryConnectMdnsSecondServiceSucceeds() {
+    g_mdns_service_count = 2;
+    g_mqtt_connect_fail_n = 1; /* first service fails, second succeeds */
+    TEST_ASSERT_TRUE(netMqttTryConnect());
+    TEST_ASSERT_EQUAL_INT(2, g_mqtt_connect_calls);
+    /* scan not reached since mDNS succeeded on second service */
+    TEST_ASSERT_EQUAL_INT(2, g_mqtt_set_server_calls);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(testHasClientFalseWhenNoStation);
     RUN_TEST(testHasClientTrueWithOneStation);
+    RUN_TEST(testNetBeginMdnsSuccess);
+    RUN_TEST(testNetBeginMdnsFails);
     RUN_TEST(testTryConnectSucceedsViaMdns);
     RUN_TEST(testTryConnectMdnsEmptyFallsBackToScan);
     RUN_TEST(testTryConnectMdnsFailsFallsBackToScan);
+    RUN_TEST(testTryConnectMdnsSecondServiceSucceeds);
     RUN_TEST(testTryConnectScanSucceedsOnFirstCandidate);
     RUN_TEST(testTryConnectScanSucceedsOnSecondCandidate);
     RUN_TEST(testTryConnectReturnsFalseWhenAllFail);
@@ -149,6 +185,7 @@ int main() {
     RUN_TEST(testConnectDoesNotPublishOnFailure);
     RUN_TEST(testMqttConnectedReflectsStubState);
     RUN_TEST(testMqttPublishDelegates);
+    RUN_TEST(testMqttLoopDelegates);
     RUN_TEST(testClientIpReturnsZeroWhenWifiFails);
     RUN_TEST(testClientIpReturnsZeroWhenNetifFails);
     RUN_TEST(testClientIpReturnsZeroWhenNoStation);
